@@ -1,0 +1,35 @@
+services:
+  app:
+    build: ./backend
+    ports:
+      - "8011:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://supdown:supdown@db:5432/supdown
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      COOKIES_FILE: /app/cookies.txt
+      FRONTEND_DIR: /app/frontend
+    volumes:
+      - ./backend:/app
+      - ./frontend:/app/frontend
+      - ./www.youtube.com_cookies.txt:/app/cookies.txt
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: supdown
+      POSTGRES_PASSWORD: supdown
+      POSTGRES_DB: supdown
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U supdown"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:

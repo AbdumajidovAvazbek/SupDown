@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SupDown — YouTube Subtitr</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface-2: #21262d;
+      --border: #30363d;
+      --text: #e6edf3;
+      --text-muted: #7d8590;
+      --accent: #388bfd;
+      --accent-hover: #58a6ff;
+      --success: #3fb950;
+      --error: #f85149;
+      --radius: 6px;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-size: 14px;
+      height: 100vh;
+      display: flex;
+      overflow: hidden;
+    }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      width: 300px;
+      min-width: 300px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .sidebar-top {
+      padding: 18px 16px 14px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .logo {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      letter-spacing: -0.5px;
+    }
+
+    #extract-form { display: flex; flex-direction: column; gap: 8px; }
+
+    input[type="url"], select {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: var(--radius);
+      padding: 8px 12px;
+      font-size: 13px;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+
+    input[type="url"]:focus, select:focus { border-color: var(--accent); }
+    input[type="url"]::placeholder { color: var(--text-muted); }
+
+    .btn {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: var(--radius);
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s, opacity 0.15s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      white-space: nowrap;
+    }
+
+    .btn:hover:not(:disabled) { background: var(--accent-hover); }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn.ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .btn.ghost:hover:not(:disabled) { background: var(--surface-2); color: var(--text); }
+
+    /* ── History ── */
+    .section-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 10px 16px 4px;
+      flex-shrink: 0;
+    }
+
+    #history {
+      flex: 1;
+      overflow-y: auto;
+      padding-bottom: 8px;
+    }
+
+    .hist-empty {
+      padding: 12px 16px;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .hist-item {
+      padding: 9px 16px 9px 16px;
+      cursor: pointer;
+      border-left: 3px solid transparent;
+      transition: background 0.12s, border-color 0.12s;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hist-item:hover { background: var(--surface-2); }
+    .hist-item.active { background: var(--surface-2); border-left-color: var(--accent); }
+
+    .hist-item-body { flex: 1; min-width: 0; }
+
+    .hist-title {
+      font-size: 13px;
+      color: var(--text);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hist-meta {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 3px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .del-btn {
+      background: none;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px 4px;
+      border-radius: 4px;
+      font-size: 13px;
+      opacity: 0;
+      transition: opacity 0.15s, color 0.15s;
+      flex-shrink: 0;
+    }
+    .hist-item:hover .del-btn { opacity: 1; }
+    .del-btn:hover { color: var(--error); }
+
+    .badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 20px;
+      background: var(--surface-2);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+    .badge.ai { background: rgba(63,185,80,0.1); color: var(--success); border-color: rgba(63,185,80,0.3); }
+
+    /* ── Main content ── */
+    #content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-muted);
+      gap: 10px;
+      padding: 32px;
+    }
+
+    #empty-state .icon { font-size: 56px; opacity: 0.25; }
+    #empty-state h3 { font-size: 18px; color: var(--text); font-weight: 600; }
+    #empty-state p { font-size: 13px; text-align: center; max-width: 280px; line-height: 1.6; }
+
+    #video-view {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .vid-header {
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+
+    .vid-header h2 {
+      flex: 1;
+      font-size: 15px;
+      font-weight: 600;
+      min-width: 0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .vid-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+    /* ── Tabs ── */
+    .tabs {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      flex-shrink: 0;
+    }
+
+    .tab {
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 500;
+      transition: color 0.15s, border-color 0.15s;
+      margin-bottom: -1px;
+    }
+
+    .tab:hover { color: var(--text); }
+    .tab.active { color: var(--text); border-bottom-color: var(--accent); }
+
+    .tab-panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: 20px;
+    }
+
+    pre#subtitles-text {
+      font-family: inherit;
+      font-size: 14px;
+      line-height: 1.75;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
+    /* ── Markdown analysis styles ── */
+    #analysis-text { line-height: 1.7; }
+    #analysis-text h2 {
+      font-size: 15px;
+      margin: 22px 0 10px;
+      color: var(--text);
+      padding-bottom: 6px;
+      border-bottom: 1px solid var(--border);
+    }
+    #analysis-text h2:first-child { margin-top: 0; }
+    #analysis-text ul { padding-left: 22px; }
+    #analysis-text li { margin: 5px 0; color: var(--text); }
+    #analysis-text p { color: var(--text); margin: 8px 0; }
+    #analysis-text strong { color: var(--accent-hover); }
+
+    .analysis-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 10px;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    /* ── Loading overlay ── */
+    #loading-overlay {
+      display: none;
+      position: absolute;
+      inset: 0;
+      background: rgba(13, 17, 23, 0.75);
+      z-index: 100;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(2px);
+    }
+
+    #loading-overlay.show { display: flex; }
+
+    .loading-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 28px 36px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 14px;
+      min-width: 220px;
+    }
+
+    .spinner {
+      width: 36px;
+      height: 36px;
+      border: 3px solid rgba(56, 139, 253, 0.2);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+
+    .loading-card p { color: var(--text-muted); font-size: 13px; text-align: center; }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Toast ── */
+    #toasts {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .toast {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 10px 16px;
+      font-size: 13px;
+      max-width: 320px;
+      animation: slide-in 0.2s ease-out;
+    }
+
+    .toast.success { border-color: rgba(63,185,80,0.4); color: var(--success); }
+    .toast.error { border-color: rgba(248,81,73,0.4); color: var(--error); }
+
+    @keyframes slide-in {
+      from { transform: translateX(110%); opacity: 0; }
+      to   { transform: translateX(0);    opacity: 1; }
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 5px; height: 5px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+    /* ── Responsive ── */
+    @media (max-width: 640px) {
+      body { flex-direction: column; }
+      #sidebar { width: 100%; min-width: unset; border-right: none; border-bottom: 1px solid var(--border); }
+      #history { max-height: 160px; }
+    }
+  </style>
+</head>
+<body>
+
+<aside id="sidebar">
+  <div class="sidebar-top">
+    <div class="logo">▶ SupDown</div>
+    <form id="extract-form">
+      <input type="url" id="url-input" placeholder="YouTube URL ni kiriting..." autocomplete="off" required>
+      <select id="lang-select">
+        <option value="en">🇺🇸 English</option>
+        <option value="ru">🇷🇺 Русский</option>
+        <option value="uz">🇺🇿 O'zbek</option>
+        <option value="zh-Hans">🇨🇳 中文</option>
+        <option value="ja">🇯🇵 日本語</option>
+        <option value="ko">🇰🇷 한국어</option>
+        <option value="de">🇩🇪 Deutsch</option>
+        <option value="fr">🇫🇷 Français</option>
+        <option value="es">🇪🇸 Español</option>
+        <option value="ar">🇸🇦 العربية</option>
+        <option value="hi">🇮🇳 हिंदी</option>
+        <option value="pt">🇧🇷 Português</option>
+        <option value="tr">🇹🇷 Türkçe</option>
+      </select>
+      <button class="btn" type="submit" id="extract-btn">⬇ Subtitr olish</button>
+    </form>
+  </div>
+  <div class="section-label">Tarix</div>
+  <div id="history"></div>
+</aside>
+
+<main id="content">
+  <div id="empty-state">
+    <div class="icon">🎬</div>
+    <h3>SupDown</h3>
+    <p>YouTube video URL ni chapga kiriting va subtitrlarni oling. AI bilan o'zbek tilida tahlil ham qilish mumkin.</p>
+  </div>
+
+  <div id="video-view">
+    <div class="vid-header">
+      <h2 id="vid-title">—</h2>
+      <div class="vid-actions">
+        <button class="btn ghost" id="analyze-btn">✨ AI Tahlil</button>
+        <button class="btn ghost" id="copy-btn">📋</button>
+        <button class="btn ghost" id="dl-btn">⬇ TXT</button>
+      </div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab active" data-tab="sub">Subtitrlar</button>
+      <button class="tab" data-tab="ai">AI Tahlili</button>
+    </div>
+
+    <div id="panel-sub" class="tab-panel">
+      <pre id="subtitles-text"></pre>
+    </div>
+
+    <div id="panel-ai" class="tab-panel" style="display:none;">
+      <div id="analysis-text">
+        <div class="analysis-empty">
+          <p>✨ AI Tahlil tugmasini bosing</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="loading-overlay">
+    <div class="loading-card">
+      <div class="spinner"></div>
+      <p id="loading-msg">Yuklanmoqda...</p>
+    </div>
+  </div>
+</main>
+
+<div id="toasts"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+  const $ = id => document.getElementById(id);
+
+  const state = { videos: [], currentId: null, currentVideo: null };
+
+  // ── API ──────────────────────────────────────────────────────────────────
+  const api = {
+    async delete(path) {
+      const r = await fetch(path, { method: 'DELETE' });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Xato'); }
+      return r.json();
+    },
+    async post(path, body) {
+      const r = await fetch(path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Xato'); }
+      return r.json();
+    },
+    async get(path) {
+      const r = await fetch(path);
+      if (!r.ok) { const e = await r.json(); throw new Error(e.detail || 'Xato'); }
+      return r.json();
+    },
+  };
+
+  // ── Toast ────────────────────────────────────────────────────────────────
+  function toast(msg, type = 'info') {
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = msg;
+    $('toasts').appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+  }
+
+  // ── Loading ──────────────────────────────────────────────────────────────
+  function showLoading(msg) {
+    $('loading-msg').textContent = msg || 'Yuklanmoqda...';
+    $('loading-overlay').classList.add('show');
+  }
+  function hideLoading() {
+    $('loading-overlay').classList.remove('show');
+  }
+
+  // ── Escape HTML ──────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  // ── Render history ───────────────────────────────────────────────────────
+  function renderHistory() {
+    const h = $('history');
+    if (!state.videos.length) {
+      h.innerHTML = '<div class="hist-empty">Hali video yo\'q</div>';
+      return;
+    }
+    h.innerHTML = state.videos.map(v => `
+      <div class="hist-item${v.id === state.currentId ? ' active' : ''}" data-id="${v.id}">
+        <div class="hist-item-body">
+          <div class="hist-title">${esc(v.title || v.video_id)}</div>
+          <div class="hist-meta">
+            <span class="badge">${esc(v.language || 'en')}</span>
+            ${v.has_analysis ? '<span class="badge ai">✓ AI</span>' : ''}
+          </div>
+        </div>
+        <button class="del-btn" data-del="${v.id}" title="O'chirish">🗑</button>
+      </div>
+    `).join('');
+
+    h.querySelectorAll('.hist-item').forEach(el => {
+      el.addEventListener('click', e => {
+        if (e.target.closest('.del-btn')) return;
+        loadVideo(Number(el.dataset.id));
+      });
+    });
+
+    h.querySelectorAll('.del-btn').forEach(btn => {
+      btn.addEventListener('click', async e => {
+        e.stopPropagation();
+        const id = Number(btn.dataset.del);
+        try {
+          await api.delete(`/api/videos/${id}`);
+          state.videos = state.videos.filter(v => v.id !== id);
+          if (state.currentId === id) {
+            state.currentId = null;
+            state.currentVideo = null;
+            $('video-view').style.display = 'none';
+            $('empty-state').style.display = 'flex';
+          }
+          renderHistory();
+        } catch(e) { toast(e.message, 'error'); }
+      });
+    });
+  }
+
+  // ── Tab switch ───────────────────────────────────────────────────────────
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(t =>
+      t.classList.toggle('active', t.dataset.tab === tab)
+    );
+    $('panel-sub').style.display = tab === 'sub' ? 'block' : 'none';
+    $('panel-ai').style.display  = tab === 'ai'  ? 'block' : 'none';
+  }
+
+  // ── Show video ───────────────────────────────────────────────────────────
+  function showVideo(video) {
+    state.currentVideo = video;
+    $('empty-state').style.display = 'none';
+    $('video-view').style.display = 'flex';
+
+    $('vid-title').textContent = video.title || video.video_id;
+    $('subtitles-text').textContent = video.subtitles || '(subtitrlar topilmadi)';
+
+    if (video.ai_analysis) {
+      $('analysis-text').innerHTML = marked.parse(video.ai_analysis);
+      $('analyze-btn').textContent = '✨ Qayta tahlil';
+    } else {
+      $('analysis-text').innerHTML = '<div class="analysis-empty"><p>✨ AI Tahlil tugmasini bosing</p></div>';
+      $('analyze-btn').textContent = '✨ AI Tahlil';
+    }
+
+    switchTab('sub');
+  }
+
+  // ── Load video from server ───────────────────────────────────────────────
+  async function loadVideo(id) {
+    state.currentId = id;
+    renderHistory();
+    showLoading('Video yuklanmoqda...');
+    try {
+      const v = await api.get(`/api/videos/${id}`);
+      showVideo(v);
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      hideLoading();
+    }
+  }
+
+  // ── Extract form ─────────────────────────────────────────────────────────
+  $('extract-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const url  = $('url-input').value.trim();
+    const lang = $('lang-select').value;
+
+    $('extract-btn').disabled = true;
+    showLoading('Subtitrlar yuklanmoqda... Bu bir necha daqiqa olishi mumkin');
+
+    try {
+      const video = await api.post('/api/extract', { url, lang });
+      toast('Subtitrlar muvaffaqiyatli olindi!', 'success');
+      $('url-input').value = '';
+      state.currentId = video.id;
+      state.videos = await api.get('/api/videos');
+      renderHistory();
+      showVideo(video);
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      $('extract-btn').disabled = false;
+      hideLoading();
+    }
+  });
+
+  // ── Analyze button ───────────────────────────────────────────────────────
+  $('analyze-btn').addEventListener('click', async () => {
+    if (!state.currentId) return;
+    $('analyze-btn').disabled = true;
+    showLoading('AI tahlil qilmoqda... Bu yarim daqiqa olishi mumkin');
+
+    try {
+      const res = await api.post(`/api/analyze/${state.currentId}`, {});
+      state.currentVideo.ai_analysis = res.ai_analysis;
+      $('analysis-text').innerHTML = marked.parse(res.ai_analysis);
+      $('analyze-btn').textContent = '✨ Qayta tahlil';
+      switchTab('ai');
+      toast('AI tahlil tayyor!', 'success');
+
+      const v = state.videos.find(v => v.id === state.currentId);
+      if (v) v.has_analysis = true;
+      renderHistory();
+    } catch (e) {
+      toast(e.message, 'error');
+    } finally {
+      $('analyze-btn').disabled = false;
+      hideLoading();
+    }
+  });
+
+  // ── Copy button ──────────────────────────────────────────────────────────
+  $('copy-btn').addEventListener('click', () => {
+    const activeTab = document.querySelector('.tab.active').dataset.tab;
+    const text = activeTab === 'sub'
+      ? (state.currentVideo?.subtitles || '')
+      : (state.currentVideo?.ai_analysis || '');
+    navigator.clipboard.writeText(text)
+      .then(() => toast('Nusxa olindi!', 'success'))
+      .catch(() => toast('Nusxa olishda xato', 'error'));
+  });
+
+  // ── Download button ──────────────────────────────────────────────────────
+  $('dl-btn').addEventListener('click', () => {
+    if (state.currentId) window.location.href = `/api/download/${state.currentId}`;
+  });
+
+  // ── Tab clicks ───────────────────────────────────────────────────────────
+  document.querySelectorAll('.tab').forEach(t =>
+    t.addEventListener('click', () => switchTab(t.dataset.tab))
+  );
+
+  // ── Init ─────────────────────────────────────────────────────────────────
+  (async () => {
+    try {
+      state.videos = await api.get('/api/videos');
+      renderHistory();
+    } catch (e) {
+      console.error('Init:', e);
+    }
+  })();
+</script>
+</body>
+</html>

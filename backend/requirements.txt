@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+sqlalchemy[asyncio]
+asyncpg
+yt-dlp
+anthropic
+httpx
+python-dotenv
+curl_cffi
+youtube-transcript-api
